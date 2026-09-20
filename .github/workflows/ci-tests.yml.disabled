@@ -1,0 +1,40 @@
+name: "CI Tests"
+
+on:
+  pull_request:
+    types:
+      - "opened"
+      - "ready_for_review"
+      - "synchronize"
+      - "reopened"
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to run the workflow against"
+        required: false
+        type: "string"
+
+jobs:
+  unit-tests:
+    name: "Unit Tests"
+    runs-on: "ubuntu-latest"
+    env:
+      BRANCH_NAME: "${{ github.event.inputs.branch || github.head_ref || github.ref_name || 'main' }}"
+    concurrency:
+      group: "ci-unit-tests-${{ github.workflow }}-${{ github.ref }}"
+      cancel-in-progress: true
+
+    steps:
+      - name: "Checkout repository"
+        uses: "actions/checkout@v7"
+
+      - name: "Setup node and pnpm"
+        uses: "pnpm/setup@v2"
+        with:
+          cache: true
+
+      - name: "Run unit tests"
+        run: "pnpm test"
