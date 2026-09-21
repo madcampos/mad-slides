@@ -1,0 +1,31 @@
+:host {
+	display: grid;
+	grid-template-columns: 1fr;
+	grid-template-rows: 1fr auto;
+	grid-template-areas:
+		'slides'
+		'controls';
+
+	div {
+		grid-area: slides;
+		display: flex;
+		place-self: center;
+		align-items: stretch;
+		justify-content: stretch;
+	}
+
+	nav {
+		grid-area: controls;
+		display: flex;
+		align-content: center;
+		justify-content: center;
+		flex-wrap: wrap;
+
+		* { flex-shrink: 0; }
+
+		hr {
+			border: none;
+			flex-grow: 1;
+		}
+	}
+}
