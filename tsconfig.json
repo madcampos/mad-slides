@@ -5,6 +5,8 @@
 	"compilerOptions": {
 		"rootDir": ".",
 		"tsBuildInfoFile": "node_modules/.tsbuildinfo",
-		"lib": ["ESNext", "DOM"]
+		"lib": ["ESNext", "DOM"],
+		"typeRoots": ["node_modules"],
+		"types": ["typed-query-selector"]
 	}
 }
