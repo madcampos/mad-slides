@@ -1,0 +1,19 @@
+:host {
+	display: grid;
+
+	header { grid-area: header; }
+	footer { grid-area: footer; }
+
+	slide-caption:nth-of-type(1) { grid-area: caption-a; }
+	slide-caption:nth-of-type(2) { grid-area: caption-b; }
+	slide-caption:only-of-type { grid-area: caption; }
+
+	slide-content:nth-of-type(1) { grid-area: content-a; }
+	slide-content:nth-of-type(2) { grid-area: content-b; }
+	slide-content:only-of-type { grid-area: content; }
+
+	/* TODO: create grid templates for the layouts */
+	/* TODO: show date */
+	/* TODO: show numbers */
+	/* TODO: add not target, to display none */
+}
