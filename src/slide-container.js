@@ -111,6 +111,91 @@ export class MadSlideContainer extends HTMLElement {
 		}
 	}
 
+	/**
+	 * @param {import('./slide.js').MadSlide} slide
+	 */
+	#getSlideSteps(slide) {
+		const steps = [...slide.querySelectorAll('[data-animate-in], [data-animate-out], [data-animate-highlight]')];
+		const currentStep = slide.querySelector('[data-current-step]') ?? undefined;
+
+		return {
+			steps,
+			currentStep,
+
+			isFirstStep: steps.at(0) === currentStep,
+			isLastStep: steps.at(-1) === currentStep,
+
+			isCurrentStepHighlight: currentStep?.getAttribute('data-current-step') === 'highlight',
+			currentStepHasHighlight: currentStep?.hasAttribute('data-animate-highlight') ?? false
+		};
+	}
+
+	/**
+	 * @param {Element[]} steps
+	 * @param {Element} step
+	 */
+	#getAdjacentStep(steps, step) {
+		const index = steps.indexOf(step);
+
+		if (index === -1) {
+			return {};
+		}
+
+		return {
+			// oxlint-disable-next-line no-magic-numbers
+			secondPreviousStep: index > 1 ? steps.at(index - 2) : undefined,
+			previousStep: index > 0 ? steps.at(index - 1) : undefined,
+
+			nextStep: index < steps.length - 1 ? steps.at(index + 1) : undefined,
+			// oxlint-disable-next-line no-magic-numbers
+			secondNextStep: index < steps.length - 2 ? steps.at(index + 2) : undefined
+		};
+	}
+
+	/**
+	 * @param {import('./slide.js').MadSlide} currentSlide
+	 */
+	#getAdjacentSlides(currentSlide) {
+		const slides = [...this.querySelectorAll('mad-slide')];
+		const index = slides.indexOf(currentSlide);
+
+		if (index === -1) {
+			return {};
+		}
+
+		return {
+			previousSlide: index > 0 ? slides.at(index - 1) : undefined,
+
+			nextSlide: index < slides.length - 1 ? slides.at(index + 1) : undefined
+		};
+	}
+
+	/**
+	 * @param {import('./slide.js').MadSlide} slide
+	 * @param {Element} [currentStep]
+	 */
+	#clearStepsAttributes(slide, currentStep) {
+		slide.querySelector('[data-previous-step]')?.toggleAttribute('data-previous-step', false);
+		slide.querySelector('[data-next-step]')?.toggleAttribute('data-next-step', false);
+
+		currentStep?.toggleAttribute('data-current-step', false);
+	}
+
+	/**
+	 * @param {Object} options
+	 * @param {'true' | 'false'} [options.previous]
+	 * @param {'true' | 'false'} [options.next]
+	 */
+	#setButtonDisabledState({ previous, next }) {
+		if (previous) {
+			this.shadowRoot.querySelector('button[command="--next-part"]')?.setAttribute('aria-disabled', previous);
+		}
+
+		if (next) {
+			this.shadowRoot.querySelector('button[command="--previous-part"]')?.setAttribute('aria-disabled', next);
+		}
+	}
+
 	#previousPart() {
 		const currentSlide = this.querySelector('mad-slide[aria-current="step"]');
 		if (!currentSlide) {
@@ -123,60 +208,55 @@ export class MadSlideContainer extends HTMLElement {
 		}
 
 		// Reset buttons state
-		this.shadowRoot.querySelector('button[command="--next-part"]')?.setAttribute('aria-disabled', 'false');
-		this.shadowRoot.querySelector('button[command="--previous-part"]')?.setAttribute('aria-disabled', 'false');
+		this.#setButtonDisabledState({ previous: 'false', next: 'false' });
 
-		const currentStep = currentSlide.querySelector('[data-current-step]');
+		const { currentStep, steps, currentStepHasHighlight, isCurrentStepHighlight, isFirstStep } = this.#getSlideSteps(currentSlide);
 
 		// If current step has highlight, go back on the highlight
-		if (currentStep?.getAttribute('data-animate-highlight') && currentStep.getAttribute('data-current-step') === 'highlight') {
-			currentStep.setAttribute('data-current-step', '');
+		if (currentStepHasHighlight && isCurrentStepHighlight) {
+			currentStep?.setAttribute('data-current-step', '');
 			return;
 		}
 
-		const steps = [...currentSlide.querySelectorAll('[data-animate-in], [data-animate-out], [data-animate-highlight]')];
-
 		// If there is no steps, or it is the first step, go to the previous slide
-		if (!currentStep || steps.at(0) === currentStep) {
-			currentStep?.toggleAttribute('data-current-step', false);
+		if (!currentStep || isFirstStep) {
+			this.#clearStepsAttributes(currentSlide, currentStep);
 
-			const previousSlide = currentSlide.previousElementSibling;
+			const { previousSlide } = this.#getAdjacentSlides(currentSlide);
 			if (previousSlide) {
 				currentSlide.removeAttribute('aria-current');
 				previousSlide.setAttribute('aria-current', 'step');
 
-				previousSlide.querySelector(':is([data-animate-in], [data-animate-out], [data-animate-highlight]):nth-last-of-type(2)')?.toggleAttribute(
-					'data-previous-step',
-					true
-				);
-				previousSlide.querySelector(':is([data-animate-in], [data-animate-out], [data-animate-highlight]):nth-last-of-type(1)')?.toggleAttribute('data-current-step', true);
+				const { steps: previousSlideSteps } = this.#getSlideSteps(previousSlide);
+				const previousSlideCurrentStep = previousSlideSteps.at(-1);
+
+				if (previousSlideCurrentStep) {
+					const { previousStep: previousSlidePreviousStep } = this.#getAdjacentStep(previousSlideSteps, previousSlideCurrentStep);
+
+					this.#clearStepsAttributes(previousSlide);
+					previousSlidePreviousStep?.toggleAttribute('data-previous-step', true);
+					previousSlideCurrentStep.toggleAttribute('data-current-step', true);
+
+					// Apply highlight, if it exists
+					if (previousSlideCurrentStep.hasAttribute('data-animate-highlight')) {
+						previousSlideCurrentStep.setAttribute('data-current-step', 'highlight');
+					}
+				}
 			} else {
-				this.shadowRoot.querySelector('button[command="--previous-part"]')?.setAttribute('aria-disabled', 'true');
+				// TODO: review this logic. Should this be here or in another place?
+				this.#setButtonDisabledState({ previous: 'true' });
 			}
 
 			return;
 		}
 
-		const previousStep = this.querySelector('[data-previous-step]');
+		// Update the previous/current steps
+		const { previousStep, secondPreviousStep } = this.#getAdjacentStep(steps, currentStep);
 
-		// Find the previous step and update the previous/current steps
-		let previousStepIndex = Infinity;
-		for (const [index, step] of steps.entries()) {
-			if (step === previousStep) {
-				previousStepIndex = index;
-			}
-
-			if (previousStepIndex - 1 !== index) {
-				continue;
-			}
-
-			previousStep?.toggleAttribute('data-previous-step', false);
-			previousStep?.toggleAttribute('data-current-step', true);
-
-			currentStep.toggleAttribute('data-current-step', false);
-
-			step.toggleAttribute('data-previous-step', true);
-		}
+		this.#clearStepsAttributes(currentSlide);
+		secondPreviousStep?.toggleAttribute('data-previous-step', true);
+		previousStep?.toggleAttribute('data-current-step', true);
+		currentStep.toggleAttribute('data-next-step', true);
 	}
 
 	#nextPart() {
@@ -191,53 +271,39 @@ export class MadSlideContainer extends HTMLElement {
 		}
 
 		// Reset buttons state
-		this.shadowRoot.querySelector('button[command="--next-part"]')?.setAttribute('aria-disabled', 'false');
-		this.shadowRoot.querySelector('button[command="--previous-part"]')?.setAttribute('aria-disabled', 'false');
+		this.#setButtonDisabledState({ previous: 'false', next: 'false' });
 
-		const currentStep = currentSlide.querySelector('[data-current-step]');
+		const { currentStep, steps, currentStepHasHighlight, isCurrentStepHighlight, isLastStep } = this.#getSlideSteps(currentSlide);
 
-		// If current step has highlight, run the highlight
-		if (currentStep?.getAttribute('data-animate-highlight') && currentStep.getAttribute('data-current-step') !== 'highlight') {
-			currentStep.setAttribute('data-current-step', 'highlight');
+		// If current step has highlight, but hasen't run yet, run the highlight
+		if (currentStepHasHighlight && !isCurrentStepHighlight) {
+			currentStep?.setAttribute('data-current-step', 'highlight');
 			return;
 		}
 
-		const steps = [...currentSlide.querySelectorAll('[data-animate-in], [data-animate-out], [data-animate-highlight]')];
-
 		// If there is no steps, or it is the last step, go to the next slide
-		if (!currentStep || steps.at(-1) === currentStep) {
-			this.querySelector('[data-previous-step]')?.toggleAttribute('data-previous-step', false);
-			currentStep?.toggleAttribute('data-current-step', false);
+		if (!currentStep || isLastStep) {
+			this.#clearStepsAttributes(currentSlide, currentStep);
 
-			const nextSlide = currentSlide.nextElementSibling;
+			const { nextSlide } = this.#getAdjacentSlides(currentSlide);
 			if (nextSlide) {
 				currentSlide.removeAttribute('aria-current');
 				nextSlide.setAttribute('aria-current', 'step');
 			} else {
-				this.shadowRoot.querySelector('button[command="--next-part"]')?.setAttribute('aria-disabled', 'true');
+				// TODO: review this logic. Should this be here or in another place?
+				this.#setButtonDisabledState({ next: 'true' });
 			}
 
 			return;
 		}
 
-		// Find the next step and update the previous/current steps
-		let currentStepIndex = -Infinity;
-		for (const [index, step] of steps.entries()) {
-			if (step === currentStep) {
-				currentStepIndex = index;
-			}
+		// Update the previous/current steps
+		const { nextStep, secondNextStep } = this.#getAdjacentStep(steps, currentStep);
 
-			if (currentStepIndex + 1 > index) {
-				break;
-			}
-
-			this.querySelector('[data-previous-step]')?.toggleAttribute('data-previous-step', false);
-
-			currentStep.toggleAttribute('data-current-step', false);
-			currentStep.toggleAttribute('data-previous-step', true);
-
-			step.toggleAttribute('data-current-step', true);
-		}
+		this.#clearStepsAttributes(currentSlide);
+		currentStep.toggleAttribute('data-previous-step', true);
+		nextStep?.toggleAttribute('data-current-step', true);
+		secondNextStep?.toggleAttribute('data-next-step', true);
 	}
 
 	/** @param {Event} evt */
