@@ -11,7 +11,7 @@
 		"version": "npm version --sign-git-tag --message \"chore: update package version\"",
 		"postversion": "changelog --output \"docs/changelog\" --push --create-release",
 		"update": "update",
-		"browsers": "playwright install chromium",
+		"browsers": "pnpm dlx playwright install chromium",
 		"test": "vitest"
 	},
 	"keywords": [
