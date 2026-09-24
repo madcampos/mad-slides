@@ -1,3 +1,72 @@
+// TODO: add docs to events
+// TODO: fire events
+// TODO: add types
+export class SlideChangeEvent extends Event {
+	/** @type {MadSlideContainer} */
+	container;
+	/** @type {'previous' | 'next'} */
+	direction;
+	/** @type {import('./slide.js').MadSlide} */
+	slide;
+
+	/**
+	 * @param {Object} options
+	 * @param {MadSlideContainer} options.container
+	 * @param {'previous' | 'next'} options.direction
+	 * @param {import('./slide.js').MadSlide} options.slide
+	 */
+	constructor({ container, direction, slide }) {
+		super('--slide-change', {
+			bubbles: true,
+			cancelable: false,
+			composed: true
+		});
+
+		this.container = container;
+		this.direction = direction;
+		this.slide = slide;
+	}
+}
+
+export class SlideStepChangeEvent extends Event {
+	/** @type {MadSlideContainer} */
+	container;
+	/** @type {import('./slide.js').MadSlide} */
+	slide;
+
+	/** @type {Element} */
+	previousStep;
+
+	/** @type {Element} */
+	currentStep;
+
+	/** @type {Element} */
+	nextStep;
+
+	/**
+	 * @param {Object} options
+	 * @param {MadSlideContainer} options.container
+	 * @param {import('./slide.js').MadSlide} options.slide
+	 * @param {Element} options.previousStep
+	 * @param {Element} options.currentStep
+	 * @param {Element} options.nextStep
+	 */
+	constructor({ container, slide, previousStep, currentStep, nextStep }) {
+		super('--slide-step-change', {
+			bubbles: true,
+			cancelable: false,
+			composed: true
+		});
+
+		this.container = container;
+		this.slide = slide;
+
+		this.previousStep = previousStep;
+		this.currentStep = currentStep;
+		this.nextStep = nextStep;
+	}
+}
+
 /**
  * A container for slides. It incldues the navigation buttons for the presentation.
  *
